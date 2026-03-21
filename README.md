@@ -22,9 +22,10 @@ A comprehensive, production-ready example of Event-Driven Architecture (EDA) usi
    - Consumes: `payment.completed`, `payment.failed`
 
 2. **Payment Service** (Port 8082)
-   - Processes payments (80% success rate for demo)
-   - Produces: `payment.completed`, `payment.failed`
+   - **Real payment gateway integration** (Razorpay + Stripe simulation)
+   - Produces: `payment.initiated`, `payment.completed`, `payment.failed`
    - Consumes: `ticket.reserved`
+   - **NEW**: Webhook endpoints for payment gateway callbacks
 
 3. **Notification Service** (Port 8083)
    - Sends notifications (simulated)
@@ -87,7 +88,7 @@ docker-compose logs -f ticket-service payment-service
 
 ## 📖 Usage Guide
 
-### 1. Book a Ticket (Happy Path)
+### 1. Book a Ticket with Razorpay (Real Payment)
 
 1. Open http://localhost:4200
 2. Go to "Book Tickets"
@@ -96,25 +97,47 @@ docker-compose logs -f ticket-service payment-service
    - User ID: Create a test user first or use any string
    - Show Time: Select future date/time
    - Seats: "A1, A2"
-   - Amount: 30
+   - Amount: 150
+   - **Payment Provider**: Select "Razorpay"
 4. Click "Reserve Tickets"
 5. Watch the flow:
    - Ticket reserved (status: RESERVED)
-   - Payment processing...
-   - Payment successful (status: BOOKED)
-   - Confirmation code generated
+   - Payment link generating...
+   - **Redirected to Razorpay payment page**
+6. On Razorpay page:
+   - Use test card: `4111 1111 1111 1111`
+   - CVV: Any 3 digits
+   - Expiry: Any future date
+7. Complete payment
+8. Webhook received → Payment status updated
+9. Ticket status: BOOKED
+10. View confirmation in "My Bookings"
+
+### 1.1 Test Payment Failure (Stripe Simulation)
+
+1. Follow steps 1-3 above
+2. **Payment Provider**: Select "Stripe (Test Failure)"
+3. Click "Reserve Tickets"
+4. Immediate failure:
+   - Payment fails instantly
+   - Ticket status: RELEASED
+   - Error message displayed
+5. This demonstrates the **compensating transaction pattern**
 
 ### 2. View Events in Real-Time
 
 1. Go to "Event Monitor" in the UI
 2. Click "Refresh Events"
-3. See the event flow:
-   - `ticket.reserved` → `payment.completed` → `ticket.booked`
-4. Each event shows:
+3. See the **updated event flow** (Razorpay):
+   - `ticket.reserved` → `payment.initiated` (with payment URL) → `payment.completed` → `ticket.booked`
+4. For Stripe failure:
+   - `ticket.reserved` → `payment.failed` → `ticket.released`
+5. Each event shows:
    - Event ID (for idempotency)
    - Correlation ID (links related events)
    - Topic, partition, offset
    - Complete event data
+   - **NEW**: Payment URL in PaymentInitiatedEvent
 
 ### 3. Explore Kafka UI
 
@@ -277,6 +300,53 @@ docker-compose up -d
 - API documentation (Swagger)
 - Multi-stage Docker builds
 - Proper CORS configuration
+
+## 💳 Payment Gateway Integration
+
+This system includes **real payment gateway integration** to demonstrate production-ready payment processing.
+
+### Supported Payment Providers
+
+1. **Razorpay** (Real Integration)
+   - Live test mode with Razorpay API
+   - Payment Links API for seamless checkout
+   - Webhook signature verification (HMAC-SHA256)
+   - Test cards: `4111 1111 1111 1111` (success), `4012 0010 3714 1112` (failure)
+
+2. **Stripe** (Simulated Failure)
+   - Always fails immediately
+   - Demonstrates compensating transactions
+   - Used for testing error handling
+
+### Payment Flow
+
+```
+User selects provider → Reserve ticket → Payment link generated
+→ User redirected to gateway → Payment completed on gateway
+→ Webhook callback → Signature verified → Payment status updated
+→ Ticket confirmed (BOOKED) or released (on failure)
+```
+
+### Configuration
+
+Set these environment variables for Razorpay:
+```bash
+export RAZORPAY_KEY_ID=your_key_id
+export RAZORPAY_KEY_SECRET=your_key_secret
+export RAZORPAY_WEBHOOK_SECRET=your_webhook_secret
+```
+
+**For detailed payment integration documentation**: See [docs/PAYMENT_INTEGRATION.md](docs/PAYMENT_INTEGRATION.md)
+
+### Security Features
+
+- ✅ Webhook signature verification (prevents fraud)
+- ✅ Idempotency handling (prevents duplicate processing)
+- ✅ API key protection (environment variables)
+- ✅ HTTPS enforcement (production requirement)
+- ✅ Payment status double-check (verify with gateway API)
+
+---
 
 ## 📚 Additional Resources
 

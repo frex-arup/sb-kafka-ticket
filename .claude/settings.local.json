@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs grep:*)",
+      "Bash(find D:ArupKafkaticket-service -name *.java -path */controller/*)",
+      "Bash(find D:ArupKafka -name TicketService.java -path */service/*)",
+      "Bash(find D:ArupKafkacommon -name *.java -path */event/*)",
+      "Bash(mvn clean:*)",
+      "Bash(for f:*)",
+      "Bash(do echo:*)",
+      "Read(//d/Arup/Kafka/**)",
+      "Bash(done)"
+    ]
+  }
+}

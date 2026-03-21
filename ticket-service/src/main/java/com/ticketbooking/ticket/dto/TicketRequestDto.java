@@ -31,4 +31,6 @@ public class TicketRequestDto {
     @NotNull(message = "Total amount is required")
     @DecimalMin(value = "0.01", message = "Amount must be positive")
     private BigDecimal totalAmount;
+
+    private String paymentProvider; // RAZORPAY, STRIPE, or SIMULATED
 }

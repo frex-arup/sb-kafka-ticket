@@ -36,18 +36,5 @@ public class TicketReservedEvent extends BaseEvent {
     private String userId;
     private BigDecimal totalAmount;
     private LocalDateTime reservedUntil;
-
-    public TicketReservedEvent(String ticketId, String movieName, LocalDateTime showTime,
-                               List<String> seatNumbers, String userId, BigDecimal totalAmount,
-                               LocalDateTime reservedUntil, String correlationId) {
-        this.ticketId = ticketId;
-        this.movieName = movieName;
-        this.showTime = showTime;
-        this.seatNumbers = seatNumbers;
-        this.userId = userId;
-        this.totalAmount = totalAmount;
-        this.reservedUntil = reservedUntil;
-        this.setCorrelationId(correlationId);
-        initializeBaseFields("ticket.reserved");
-    }
+    private String paymentProvider;  // "RAZORPAY", "STRIPE", or "SIMULATED"
 }

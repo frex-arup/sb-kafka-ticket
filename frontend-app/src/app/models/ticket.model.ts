@@ -18,6 +18,20 @@ export interface TicketRequest {
   seatNumbers: string[];
   userId: string;
   totalAmount: number;
+  paymentProvider: 'RAZORPAY' | 'STRIPE' | 'SIMULATED';
+}
+
+export interface PaymentStatus {
+  paymentId: string;
+  ticketId: string;
+  status: 'PENDING' | 'COMPLETED' | 'FAILED';
+  paymentProvider: string;
+  paymentUrl?: string;
+  amount: number;
+  transactionId?: string;
+  failureReason?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface User {

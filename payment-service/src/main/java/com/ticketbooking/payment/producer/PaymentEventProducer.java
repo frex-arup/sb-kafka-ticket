@@ -2,6 +2,7 @@ package com.ticketbooking.payment.producer;
 
 import com.ticketbooking.common.event.PaymentCompletedEvent;
 import com.ticketbooking.common.event.PaymentFailedEvent;
+import com.ticketbooking.common.event.PaymentInitiatedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -49,6 +50,22 @@ public class PaymentEventProducer {
                 log.info("PaymentFailedEvent published successfully");
             } else {
                 log.error("Failed to publish PaymentFailedEvent", ex);
+            }
+        });
+    }
+
+    public void publishPaymentInitiated(PaymentInitiatedEvent event) {
+        log.info("Publishing PaymentInitiatedEvent: paymentId={}, ticketId={}, provider={}, correlationId={}",
+                event.getPaymentId(), event.getTicketId(), event.getPaymentProvider(), event.getCorrelationId());
+
+        CompletableFuture<SendResult<String, Object>> future =
+                kafkaTemplate.send(paymentEventsTopic, event.getTicketId(), event);
+
+        future.whenComplete((result, ex) -> {
+            if (ex == null) {
+                log.info("PaymentInitiatedEvent published successfully: paymentUrl={}", event.getPaymentUrl());
+            } else {
+                log.error("Failed to publish PaymentInitiatedEvent", ex);
             }
         });
     }

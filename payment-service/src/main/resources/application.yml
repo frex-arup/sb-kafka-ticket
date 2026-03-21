@@ -1,5 +1,6 @@
 server:
   port: 8082
+  base-url: ${SERVER_BASE_URL:http://localhost:8082}
 
 spring:
   application:
@@ -48,6 +49,19 @@ kafka:
 # Payment simulation settings
 payment:
   success-rate: 0.8  # 80% success rate for demonstration
+
+  # Razorpay configuration
+  razorpay:
+    key-id: ${RAZORPAY_KEY_ID:dummy}
+    key-secret: ${RAZORPAY_KEY_SECRET:dummy}
+    webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:dummy}
+    callback-url: ${RAZORPAY_CALLBACK_URL:http://localhost:8082/api/payments/webhook/razorpay}
+    payment-link-expiry-minutes: ${RAZORPAY_LINK_EXPIRY_MINUTES:15}
+
+  # Stripe configuration (simulation mode)
+  stripe:
+    simulate-failure: true
+    payment-link-expiry-minutes: ${STRIPE_LINK_EXPIRY_MINUTES:15}
 
 management:
   endpoints:

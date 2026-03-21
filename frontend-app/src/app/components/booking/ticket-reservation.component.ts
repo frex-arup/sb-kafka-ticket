@@ -8,7 +8,10 @@ import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatSelectModule } from '@angular/material/select';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { switchMap, map, catchError } from 'rxjs/operators';
+import { of } from 'rxjs';
 import { TicketService } from '../../services/ticket.service';
+import { PaymentService } from '../../services/payment.service';
 import { UserService } from '../../services/user.service';
 
 interface ReservationForm {
@@ -16,6 +19,7 @@ interface ReservationForm {
   userId: string;
   showTime: string;
   totalAmount: number;
+  paymentProvider: 'RAZORPAY' | 'STRIPE' | 'SIMULATED';
 }
 
 interface ReservationResult {
@@ -57,8 +61,23 @@ interface ReservationResult {
             </mat-form-field>
 
             <mat-form-field appearance="outline" style="width: 100%;">
-              <mat-label>Total Amount</mat-label>
+              <mat-label>Total Amount (INR)</mat-label>
               <input matInput type="number" [(ngModel)]="reservation.totalAmount" name="amount" required>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" style="width: 100%;">
+              <mat-label>Payment Provider</mat-label>
+              <mat-select [(ngModel)]="reservation.paymentProvider" name="provider" required>
+                <mat-option value="RAZORPAY">
+                  <strong>💳 Razorpay</strong> (Real Payment - Test Mode)
+                </mat-option>
+                <mat-option value="STRIPE">
+                  <strong>❌ Stripe</strong> (Simulated Failure)
+                </mat-option>
+                <mat-option value="SIMULATED">
+                  <strong>🎲 Simulated</strong> (80% Success)
+                </mat-option>
+              </mat-select>
             </mat-form-field>
 
             <button mat-raised-button color="primary" type="submit" [disabled]="loading">
@@ -74,15 +93,15 @@ interface ReservationResult {
           </div>
 
           <div style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 4px;">
-            <h4>💡 Learning Note:</h4>
-            <p>When you click "Reserve Tickets":</p>
+            <h4>💡 Payment Flow (BookMyShow-style):</h4>
+            <p><strong>Razorpay:</strong> Real payment gateway - instant redirect to Razorpay test page</p>
+            <p><strong>Stripe:</strong> Always fails - demonstrates error handling & SAGA compensation</p>
+            <p><strong>Simulated:</strong> Instant success - for testing</p>
             <ol>
-              <li>Ticket Service saves reservation to DB</li>
-              <li>Publishes <code>ticket.reserved</code> event to Kafka</li>
-              <li>Payment Service consumes event & processes payment (80% success rate)</li>
-              <li>Publishes <code>payment.completed</code> or <code>payment.failed</code></li>
-              <li>Ticket Service reacts accordingly (SAGA pattern)</li>
-              <li>Check "Event Monitor" to see events flowing!</li>
+              <li>Reserve ticket → Create payment link → Redirect (all instant!)</li>
+              <li>Complete payment on Razorpay test page</li>
+              <li>Webhook confirms payment → Ticket booked!</li>
+              <li>You'll be redirected back to "My Bookings"</li>
             </ol>
           </div>
         </mat-card-content>
@@ -96,13 +115,20 @@ interface ReservationResult {
   `]
 })
 export class TicketReservationComponent implements OnInit {
-  reservation: ReservationForm = { movieName: '', userId: '', showTime: '', totalAmount: 15 };
+  reservation: ReservationForm = {
+    movieName: '',
+    userId: '',
+    showTime: '',
+    totalAmount: 150,
+    paymentProvider: 'RAZORPAY'
+  };
   seatInput = '';
   loading = false;
   result: ReservationResult | null = null;
 
   constructor(
     private ticketService: TicketService,
+    private paymentService: PaymentService,
     private route: ActivatedRoute
   ) {}
 
@@ -123,22 +149,68 @@ export class TicketReservationComponent implements OnInit {
       showTime: new Date(this.reservation.showTime).toISOString()
     };
 
-    this.ticketService.reserveTicket(request).subscribe({
-      next: (ticket) => {
-        this.loading = false;
+    // Flatten nested subscriptions using RxJS operators
+    this.ticketService.reserveTicket(request).pipe(
+      switchMap(ticket => {
         this.result = {
           success: true,
-          message: `Ticket reserved! ID: ${ticket.id}. Payment processing... Check "My Bookings" in a moment.`,
+          message: `Ticket reserved! Preparing payment...`,
           data: ticket
         };
-      },
-      error: (err) => {
+
+        const paymentRequest = {
+          ticketId: ticket.id,
+          userId: this.reservation.userId,
+          amount: this.reservation.totalAmount,
+          paymentProvider: this.reservation.paymentProvider
+        };
+
+        return this.paymentService.initiatePayment(paymentRequest).pipe(
+          map(paymentResponse => ({ ticket, paymentResponse }))
+        );
+      }),
+      catchError(err => {
         this.loading = false;
         this.result = {
           success: false,
-          message: err.error?.message || 'Failed to reserve ticket. Please try again.'
+          message: err.error?.message || 'Failed to reserve ticket or initiate payment.'
         };
+        return of(null);
+      })
+    ).subscribe({
+      next: (result) => {
+        if (!result) return;
+
+        this.loading = false;
+        const { paymentResponse } = result;
+
+        if (paymentResponse.status === 'PENDING' && paymentResponse.paymentUrl) {
+          // Razorpay - redirect immediately
+          this.result = {
+            success: true,
+            message: 'Redirecting to payment page...'
+          };
+          setTimeout(() => {
+            window.location.href = paymentResponse.paymentUrl;
+          }, 500);
+        } else if (paymentResponse.status === 'FAILED') {
+          // Stripe failure
+          this.result = {
+            success: false,
+            message: paymentResponse.message || 'Payment failed'
+          };
+        } else if (paymentResponse.status === 'COMPLETED') {
+          // Simulated success
+          this.result = {
+            success: true,
+            message: 'Payment completed! Check "My Bookings".'
+          };
+        }
       }
     });
+  }
+
+  ngOnDestroy() {
+    // Cleanup if needed
   }
 }

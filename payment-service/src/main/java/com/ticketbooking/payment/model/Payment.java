@@ -13,7 +13,8 @@ import java.time.LocalDateTime;
 @Table(name = "payments", indexes = {
     @Index(name = "idx_ticket_id", columnList = "ticketId"),
     @Index(name = "idx_user_id", columnList = "userId"),
-    @Index(name = "idx_status", columnList = "status")
+    @Index(name = "idx_status", columnList = "status"),
+    @Index(name = "idx_payment_gateway_order_id", columnList = "paymentGatewayOrderId")
 })
 @Data
 @Builder
@@ -44,6 +45,22 @@ public class Payment {
     private String transactionId;
 
     private String failureReason;
+
+    // Payment Gateway Integration Fields
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    @Builder.Default
+    private PaymentProvider paymentProvider = PaymentProvider.SIMULATED;
+
+    private String paymentGatewayOrderId;  // Gateway-specific order/payment ID
+
+    @Column(length = 500)
+    private String paymentUrl;  // Payment link URL
+
+    private LocalDateTime paymentExpiresAt;  // Payment link expiry time
+
+    @Column(unique = true)
+    private String idempotencyKey;  // Webhook idempotency key to prevent duplicate processing
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;

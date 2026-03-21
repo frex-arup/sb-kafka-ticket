@@ -185,6 +185,11 @@ services:
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      # Razorpay Test Credentials
+      RAZORPAY_KEY_ID: rzp_test_SCRb6wY1aDgKKz
+      RAZORPAY_KEY_SECRET: LslF4Agepo446qQxhRyzEr50
+      RAZORPAY_WEBHOOK_SECRET: razorpay_webhook_secret_change_me
+      SERVER_BASE_URL: http://localhost:8082
     depends_on:
       kafka:
         condition: service_healthy

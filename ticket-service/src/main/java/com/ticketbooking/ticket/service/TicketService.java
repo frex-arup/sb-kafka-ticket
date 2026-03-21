@@ -71,16 +71,19 @@ public class TicketService {
         log.info("Ticket reserved in DB: id={}", ticket.getId());
 
         // Publish event to Kafka - this triggers payment processing
-        TicketReservedEvent event = new TicketReservedEvent(
-                ticket.getId(),
-                ticket.getMovieName(),
-                ticket.getShowTime(),
-                ticket.getSeatNumbers(),
-                ticket.getUserId(),
-                ticket.getTotalAmount(),
-                ticket.getReservedUntil(),
-                correlationId
-        );
+        TicketReservedEvent event = TicketReservedEvent.builder()
+                .eventType("ticket.reserved")
+                .timestamp(LocalDateTime.now())
+                .correlationId(correlationId)
+                .ticketId(ticket.getId())
+                .movieName(ticket.getMovieName())
+                .showTime(ticket.getShowTime())
+                .seatNumbers(ticket.getSeatNumbers())
+                .userId(ticket.getUserId())
+                .totalAmount(ticket.getTotalAmount())
+                .reservedUntil(ticket.getReservedUntil())
+                .paymentProvider(request.getPaymentProvider() != null ? request.getPaymentProvider() : "SIMULATED")
+                .build();
 
         eventProducer.publishTicketReserved(event);
 

@@ -1,0 +1,47 @@
+server:
+  port: 8085
+
+spring:
+  application:
+    name: audit-service
+
+  data:
+    mongodb:
+      uri: mongodb://admin:admin@localhost:27017/auditdb?authSource=admin
+      database: auditdb
+
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: audit-service-group
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      properties:
+        spring.json.trusted.packages: "*"
+
+kafka:
+  topics:
+    ticket-events: ticket-events
+    payment-events: payment-events
+    notification-events: notification-events
+    user-events: user-events
+    audit-events: audit-events
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+
+---
+spring:
+  config:
+    activate:
+      on-profile: docker
+  data:
+    mongodb:
+      uri: mongodb://admin:admin@mongodb:27017/auditdb?authSource=admin
+  kafka:
+    bootstrap-servers: kafka:9092
